@@ -18,6 +18,7 @@ public class PlayerProgression : MonoBehaviour
     //===================
     // Public Variables
     //===================
+//
 
     //===================
     // Private Variables

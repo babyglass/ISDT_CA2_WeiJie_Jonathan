@@ -31,6 +31,8 @@ public class Followinv : MonoBehaviour {
 		transform.eulerAngles = new Vector3 (0, target.eulerAngles.y, 0);
 	}
 
+
+
 	//---------------------------------------------------------------------------------
 	// XXX is when blah blah
 	//---------------------------------------------------------------------------------
