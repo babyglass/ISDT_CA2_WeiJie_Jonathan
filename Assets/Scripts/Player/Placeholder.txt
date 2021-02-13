@@ -1,0 +1,191 @@
+
+  }
+});
+
+// touch anywhere to dissmiss keyboard function
+const DismissKeyboard = ({ children }) => (
+  <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+    {children}
+  </TouchableWithoutFeedback>
+);
+
+// Toast handler
+const showToast = (hint) => {
+  (hint == "error")
+    ?
+    ToastAndroid.showWithGravityAndOffset(
+      "Unable to connect to server",
+      ToastAndroid.LONG,
+      ToastAndroid.BOTTOM,
+      25,
+      300
+    )
+    :
+    ToastAndroid.showWithGravityAndOffset(
+      hint,
+      ToastAndroid.LONG,
+      ToastAndroid.BOTTOM,
+      25,
+      300
+    );
+};
+
+
+// :SECTION: FORM (parent)
+function UserForm() {
+
+  const [customer_id, setcustomer_id] = useState(''); // any errors just parseInt(), or parse it before send for fetching
+  const [queue_id, setqueue_id] = useState(''); // temperory hardcoded it for testing :NOTE:
+
+  // ------------------------------------------------ Async read ------------------------------------------------:TESTING:
+  const readData = async () => {
+    try {
+      const custID = await AsyncStorage.getItem('@save_cust')
+      const queueID = await AsyncStorage.getItem('@save_queue')
+      console.log("Data Read!")
+      if (custID !== null && queueID !== null) {
+        setcustomer_id(custID)
+        setqueue_id(queueID)
+      }
+    } catch (e) {
+      // alert('Failed to fetch the data from storage')
+      console.log('Failed to fetch the data from storage')
+    }
+  }
+
+  useEffect(() => {
+    readData()
+  }, [])
+  // ------------------------------------------------ Async read ------------------------------------------------:TESTING:
+
+
+  function regexCustomerTest(customer_id) {
+    var regcustomer1 = /^[1-9][0-9]{9}$/;
+    var regcustomer2 = /^[0-9]{0,9}$/;
+
+    if (regcustomer1.test(customer_id) || regcustomer2.test(customer_id) || customer_id.length == 0) {
+      setcustomer_id(customer_id);
+    }
+    else {
+      console.log("Invalid Customer ID");
+    }
+  };
+
+  function regexQueueTest(queue_id) {
+    var regqueue1 = /^Q$|^QU$|^QUE$|^QUEU$|^QUEUE$|^QUEUE[0-9]{0,5}$/;
+
+    let upperqueue_id = queue_id.toUpperCase();
+    if (regqueue1.test(upperqueue_id) || queue_id < 1) {
+      setqueue_id(queue_id);
+    }
+    else {
+      console.log("Invalid Qeueue ID");
+    }
+  };
+  return (
+    <DismissKeyboard>
+      <View style={{ flex: 1, marginBottom: 10, marginTop: 30 }}>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ textAlign: 'center', fontSize: 16 }}>Customer ID : </Text>
+          <TextInput style={{ borderColor: "#9CBA14", borderWidth: 2, margin: 10, width: 275, fontSize: 16 }} keyboardType='numeric' onChangeText={(text) => regexCustomerTest(text)} placeholder="Customer Id" value={customer_id}>
+          </TextInput>
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 5 }}>
+          <Text style={{ textAlign: 'center', fontSize: 16 }}>Queue ID :</Text>
+          <TextInput style={{ borderColor: "#9CBA14", borderWidth: 2, margin: 10, marginLeft: 38, width: 275, fontSize: 16 }} onChangeText={(text) => regexQueueTest(text.toUpperCase())} placeholder="Queue Id" value={queue_id} returnKeyType="send" autoCapitalize="characters">
+          </TextInput>
+        </View>
+
+        <CheckQueue customer_id={customer_id} queue_id={queue_id}></CheckQueue>
+
+      </View>
+    </DismissKeyboard>
+  );
+}
+
+
+// :SECTION: FETCH (child)
+function CheckQueue({ customer_id, queue_id }) {
+  const [isLoading, setLoading] = useState(false);
+  const [data, setData] = useState([]);
+  const [checkPressed, setcheckPressed] = useState(false);
+  const [canJoin, setcanJoin] = useState(false);
+  const [didChange, setdidChange] = useState(true);
+
+  var timeout = 10000;
+
+  // ------------------------------------------------ Async save ------------------------------------------------:TESTING:
+  const saveData = async () => {
+    try {
+      await AsyncStorage.setItem('@save_cust', customer_id)
+      await AsyncStorage.setItem('@save_queue', queue_id)
+      console.log('Data Saved')
+    } catch (e) {
+      console.log('Failed to save the data to the storage')
+    }
+  }
+  // ------------------------------------------------ Async save ------------------------------------------------:TESTING:
+
+  var fetchurl = "";
+  (customer_id == "") ? fetchurl = `${host}/customer/queue?queue_id=${queue_id}` : fetchurl = `${host}/customer/queue?customer_id=${customer_id}&queue_id=${queue_id}`;  // if customer ID not exist
+
+  if ((queue_id.length < 10 || customer_id.length < 10) && didChange) { setdidChange(false); setcanJoin(false); console.log("Inputs changed"); }// to disable the join queue button on textinput change
+
+
+  // :NOTE: checkqueue api
+  const fetchData = () => {
+    const controller = new AbortController();
+    const timeout1 = setTimeout(() => { controller.abort(); }, timeout);
+
+    setcheckPressed(true)
+    setLoading(true);
+
+    fetch(`${fetchurl}`, { "signal": controller.signal })
+      .then((response) => { clearTimeout(timeout1); return response.json(); })
+      .then((json) => {
+        setData(json);
+        if (json.code == undefined) { saveData(); setcheckPressed(false); setcanJoin(true); };
+        setdidChange(true); // can shift this into the IF statement above for constant showing of (queue not found) error :NOTE:
+        console.log(json.code || "No fetch error found"); // :NOTE:  Only shown on error, else undefined
+      })
+      .catch((error) => { showToast("error"); console.error(error + "--> Fetch server error") })
+      .finally(() => setLoading(false));
+  };
+
+  // :NOTE: joinqueue api
+  const joinQueue = () => {
+    const controller2 = new AbortController();
+    const timeout2 = setTimeout(() => { controller2.abort(); }, timeout);
+
+    setLoading(true);
+
+    fetch(`${host}/customer/queue`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        customer_id: parseInt(customer_id),
+        queue_id: queue_id,
+      }),
+      "signal": controller2.signal
+    })
+      .then((response) => { clearTimeout(timeout2); return JSON.stringify(response) })
+      .then((responseData) => {
+        setcanJoin(false);
+        fetchData();
+        setLoading(true);
+        showToast("Successfully joined queue");
+        console.log(
+          "Response Body -> " + responseData
+        )
+      })
+      .catch((error) => { showToast("error"); console.error(error + "POST server error!") })
+  };
+
+  return (
+    <View style={{ flex: 1, marginHorizontal: 10 }}>
+
+      {((queue_id == "") && checkPressed) ? (<Text style={{ textAlign: 'center', fontSize: 20, color: 'red', marginBottom: 10 }}>Please Enter Queue ID</Text>)

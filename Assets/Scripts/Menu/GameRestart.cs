@@ -46,29 +46,4 @@ public class GameRestart : MonoBehaviour
 	//---------------------------------------------------------------------------------
     // Restarts game by loading scene at Index 0
     //---------------------------------------------------------------------------------
-    public void RestartGame()
-    {
-        SceneManager.LoadScene(0);
-    }
-
-    //---------------------------------------------------------------------------------
-    // Sets trigger to true to play animation
-    //---------------------------------------------------------------------------------
-    public void TriggerFadeOut()
-    {
-        Animator BOAnimator = BlockOut.GetComponent<Animator>();
-        BOAnimator.SetTrigger("GameComplete");
-    }
-
-    //---------------------------------------------------------------------------------
-    // Detects collision of colliders and triggers TriggerFadeOut function
-    //---------------------------------------------------------------------------------
-    void OnTriggerEnter(Collider collision)
-    {
-        if (collision)
-        {
-            TriggerFadeOut();
-        }
-    }
-    #endregion
-}
+  
